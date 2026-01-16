@@ -1,7 +1,8 @@
 import express from "express";
 import Workspace from "../models/Workspace.js";
 import { protect } from "../middleware/authMiddleware.js";
-import upload from "../middleware/upload.js";
+import upload from "../middleware/cloudinaryUpload.js";
+import { deleteFromCloudinary } from "../utils/cloudinaryHelpers.js";
 
 const router = express.Router();
 
@@ -39,26 +40,20 @@ router.get("/:id", async (req, res) => {
 ============================== */
 router.post("/", upload.single("image"), async (req, res) => {
   try {
-    let imageUrl;
-
-    if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
-    } else if (req.body.image_url) {
-      imageUrl = req.body.image_url;
-    } else {
+    if (!req.file) {
       return res.status(400).json({ message: "Image is required" });
     }
 
     const workspace = await Workspace.create({
       title: req.body.title,
       description: req.body.description,
-      image_url: imageUrl,
+      image_url: req.file.path, // ✅ Cloudinary URL
       price: req.body.price,
       discount: req.body.discount || 0,
       pricing_type: req.body.pricing_type,
-      cta_text: req.body.cta_text || "Book Now",
-      cta_url: req.body.cta_url || "#",
-      is_active: req.body.is_active ?? false,
+      cta_text: req.body.cta_text,
+      cta_url: req.body.cta_url,
+      is_active: req.body.is_active === "true",
     });
 
     res.status(201).json(workspace);
@@ -69,16 +64,22 @@ router.post("/", upload.single("image"), async (req, res) => {
 });
 
 /* ==============================
-   UPDATE WORKSPACE
+   UPDATE WORKSPACE (WITH IMAGE CLEANUP)
 ============================== */
 router.put("/:id", upload.single("image"), async (req, res) => {
   try {
-    let imageUrl;
+    const workspace = await Workspace.findById(req.params.id);
 
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found" });
+    }
+
+    let imageUrl = workspace.image_url;
+
+    // ✅ If new image uploaded → delete old one
     if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
-    } else if (req.body.image_url) {
-      imageUrl = req.body.image_url;
+      await deleteFromCloudinary(workspace.image_url);
+      imageUrl = req.file.path;
     }
 
     const updated = await Workspace.findByIdAndUpdate(
@@ -92,13 +93,10 @@ router.put("/:id", upload.single("image"), async (req, res) => {
         pricing_type: req.body.pricing_type,
         cta_text: req.body.cta_text,
         cta_url: req.body.cta_url,
+        is_active: req.body.is_active === "true" || req.body.is_active === true,
       },
       { new: true }
     );
-
-    if (!updated) {
-      return res.status(404).json({ message: "Workspace not found" });
-    }
 
     res.json(updated);
   } catch (error) {
@@ -108,23 +106,27 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 });
 
 /* ==============================
-   DELETE WORKSPACE
+   DELETE WORKSPACE (WITH IMAGE DELETE)
 ============================== */
 router.delete("/:id", protect, async (req, res) => {
   try {
     const workspace = await Workspace.findById(req.params.id);
 
     if (!workspace) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Workspace not found." });
+      return res.status(404).json({
+        success: false,
+        message: "Workspace not found.",
+      });
     }
+
+    // ✅ Delete image from Cloudinary
+    await deleteFromCloudinary(workspace.image_url);
 
     await workspace.deleteOne();
 
     res.json({
       success: true,
-      message: "Workspace deleted successfully.",
+      message: "Workspace and image deleted successfully.",
     });
   } catch (error) {
     console.error("❌ DELETE ERROR:", error);

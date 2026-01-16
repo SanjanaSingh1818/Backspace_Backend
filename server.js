@@ -22,7 +22,7 @@ app.use(
 app.use("/api/admin", adminRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/contact", contactRoutes);
-app.use("/uploads", express.static("uploads"));
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));
