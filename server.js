@@ -11,7 +11,13 @@ connectDB();
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: "*" } ));
+app.use(
+  cors({
+    origin: true, // 👈 reflects request origin automatically
+    credentials: true,
+  })
+);
+
 
 app.use("/api/admin", adminRoutes);
 app.use("/api/workspaces", workspaceRoutes);
