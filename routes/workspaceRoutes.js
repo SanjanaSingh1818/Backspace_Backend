@@ -47,7 +47,7 @@ router.post("/", upload.single("image"), async (req, res) => {
     const workspace = await Workspace.create({
       title: req.body.title,
       description: req.body.description,
-      image_url: req.file.path, // ✅ Cloudinary URL
+      image_url: req.file.path,
       price: req.body.price,
       discount: req.body.discount || 0,
       pricing_type: req.body.pricing_type,
@@ -58,10 +58,11 @@ router.post("/", upload.single("image"), async (req, res) => {
 
     res.status(201).json(workspace);
   } catch (error) {
-    console.error("❌ CREATE ERROR:", error);
+    console.error("CREATE ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 });
+
 
 /* ==============================
    UPDATE WORKSPACE (WITH IMAGE CLEANUP)
