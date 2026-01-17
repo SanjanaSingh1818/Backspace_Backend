@@ -1,12 +1,11 @@
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import workspaceRoutes from "./routes/workspaceRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 
-dotenv.config();
+
 connectDB();
 
 const app = express();
