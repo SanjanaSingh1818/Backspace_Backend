@@ -40,26 +40,34 @@ router.get("/:id", async (req, res) => {
 ============================== */
 router.post("/", upload.single("image"), async (req, res) => {
   try {
-    if (!req.file) {
+    // 🔒 Validate image
+    if (!req.file || !req.file.path) {
       return res.status(400).json({ message: "Image upload failed" });
     }
+
+    // 🔒 Validate pricing_type
+    if (!req.body.pricing_type) {
+      return res.status(400).json({ message: "pricing_type is required" });
+    }
+console.log("BODY:", req.body);
+console.log("FILE:", req.file);
 
     const workspace = await Workspace.create({
       title: req.body.title,
       description: req.body.description,
       image_url: req.file.path, // Cloudinary URL
-      price: req.body.price,
-      discount: req.body.discount || 0,
+      price: Number(req.body.price),
+      discount: Number(req.body.discount) || 0,
       pricing_type: req.body.pricing_type,
-      cta_text: req.body.cta_text,
-      cta_url: req.body.cta_url,
+      cta_text: req.body.cta_text || "Book Now",
+      cta_url: req.body.cta_url || "#",
       is_active: false,
     });
 
     res.status(201).json(workspace);
   } catch (error) {
-    console.error("CREATE WORKSPACE ERROR:", error);
-    res.status(500).json({ message: "Server error creating workspace" });
+    console.error("❌ CREATE WORKSPACE ERROR:", error);
+    res.status(500).json({ message: error.message });
   }
 });
 
