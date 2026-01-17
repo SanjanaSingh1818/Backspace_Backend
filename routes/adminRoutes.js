@@ -64,4 +64,18 @@ router.post("/login", async (req, res) => {
   }
 });
 
+
+// =============================
+// 🔹 Get Logged-in Admin
+// =============================
+router.get("/me", protect, (req, res) => {
+  res.json({
+    isAuthenticated: true,
+    admin: {
+      id: req.user._id,
+      email: req.user.email,
+    },
+  });
+});
+
 export default router;

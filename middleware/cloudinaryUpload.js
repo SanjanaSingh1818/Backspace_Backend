@@ -5,12 +5,8 @@ import cloudinary from "../config/cloudinary.js";
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: "backspace/workspaces", // folder in Cloudinary
+    folder: "backspace/workspaces",
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
-    transformation: [
-      { width: 1200, crop: "limit" },
-      { quality: "auto" },
-    ],
   },
 });
 

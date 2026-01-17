@@ -41,27 +41,28 @@ router.get("/:id", async (req, res) => {
 router.post("/", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: "Image is required" });
+      return res.status(400).json({ message: "Image upload failed" });
     }
 
     const workspace = await Workspace.create({
       title: req.body.title,
       description: req.body.description,
-      image_url: req.file.path,
+      image_url: req.file.path, // Cloudinary URL
       price: req.body.price,
       discount: req.body.discount || 0,
       pricing_type: req.body.pricing_type,
       cta_text: req.body.cta_text,
       cta_url: req.body.cta_url,
-      is_active: req.body.is_active === "true",
+      is_active: false,
     });
 
     res.status(201).json(workspace);
   } catch (error) {
-    console.error("CREATE ERROR:", error);
-    res.status(500).json({ message: error.message });
+    console.error("CREATE WORKSPACE ERROR:", error);
+    res.status(500).json({ message: "Server error creating workspace" });
   }
 });
+
 
 
 /* ==============================
