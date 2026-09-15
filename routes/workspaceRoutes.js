@@ -11,7 +11,8 @@ const router = express.Router();
 ============================== */
 router.get("/", async (req, res) => {
   try {
-    const workspaces = await Workspace.find().sort({ createdAt: -1 });
+    res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+    const workspaces = await Workspace.find({ is_active: true }).sort({ createdAt: -1 }).lean();
     res.json(workspaces);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch workspaces" });
@@ -38,7 +39,7 @@ router.get("/:id", async (req, res) => {
 /* ==============================
    CREATE WORKSPACE
 ============================== */
-router.post("/", upload.single("image"), async (req, res) => {
+router.post("/", protect, upload.single("image"), async (req, res) => {
   try {
     // 🔒 Validate image
     if (!req.file || !req.file.path) {
@@ -49,9 +50,6 @@ router.post("/", upload.single("image"), async (req, res) => {
     if (!req.body.pricing_type) {
       return res.status(400).json({ message: "pricing_type is required" });
     }
-console.log("BODY:", req.body);
-console.log("FILE:", req.file);
-
     const workspace = await Workspace.create({
       title: req.body.title,
       description: req.body.description,
@@ -67,7 +65,7 @@ console.log("FILE:", req.file);
     res.status(201).json(workspace);
   } catch (error) {
     console.error("❌ CREATE WORKSPACE ERROR:", error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Failed to create workspace" });
   }
 });
 
@@ -76,7 +74,7 @@ console.log("FILE:", req.file);
 /* ==============================
    UPDATE WORKSPACE (WITH IMAGE CLEANUP)
 ============================== */
-router.put("/:id", upload.single("image"), async (req, res) => {
+router.put("/:id", protect, upload.single("image"), async (req, res) => {
   try {
     const workspace = await Workspace.findById(req.params.id);
 
@@ -111,7 +109,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error("❌ UPDATE ERROR:", error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Failed to update workspace" });
   }
 });
 

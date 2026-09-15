@@ -10,9 +10,18 @@ connectDB();
 
 const app = express();
 app.use(express.json());
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 app.use(
   cors({
-    origin: true, // 👈 reflects request origin automatically
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+        return callback(null, true);
+      }
+      return callback(new Error("Origin not allowed"));
+    },
     credentials: true,
   })
 );

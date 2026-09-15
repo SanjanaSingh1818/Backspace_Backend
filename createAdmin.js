@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 import Admin from "./models/Admin.js";
 
 dotenv.config();
@@ -11,8 +12,14 @@ mongoose
 
 const create = async () => {
   try {
-    const email = "admin@backspace.co.in";
-    const password = "Admin18"; // plain text password
+    const { ADMIN_EMAIL: email, ADMIN_PASSWORD: password, ADMIN_SECRET } = process.env;
+
+    if (!ADMIN_SECRET || ADMIN_SECRET.length < 16) {
+      throw new Error("ADMIN_SECRET must be configured in the server environment");
+    }
+    if (!email || !password || password.length < 12) {
+      throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD must be configured; password must be at least 12 characters");
+    }
 
     const exists = await Admin.findOne({ email });
     if (exists) {
@@ -20,9 +27,10 @@ const create = async () => {
       process.exit();
     }
 
-    await Admin.create({ email, password });
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await Admin.create({ email, password: hashedPassword, role: "admin", tokenVersion: 0 });
 
-    console.log("✅ Admin created successfully (no hashing)");
+    console.log("✅ Admin created successfully");
     process.exit();
   } catch (err) {
     console.error("❌ Error creating admin:", err);

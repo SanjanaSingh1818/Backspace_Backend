@@ -1,5 +1,6 @@
 import express from "express";
 import Contact from "../models/Contact.js";
+import { protect } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 // CREATE new contact
@@ -13,17 +14,17 @@ router.post("/", async (req, res) => {
 });
 
 // GET all contacts
-router.get("/", async (req, res) => {
+router.get("/", protect, async (req, res) => {
   try {
     const contacts = await Contact.find().sort({ created_at: -1 });
     res.json(contacts);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching contacts", error: err });
+    res.status(500).json({ message: "Error fetching contacts" });
   }
 });
 
 // ✅ UPDATE contact status
-router.put("/:id", async (req, res) => {
+router.put("/:id", protect, async (req, res) => {
   try {
     const contact = await Contact.findByIdAndUpdate(
       req.params.id,
@@ -45,7 +46,6 @@ router.put("/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({
       message: "Error updating contact",
-      error: err,
     });
   }
 });
