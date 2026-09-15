@@ -120,11 +120,19 @@ router.post("/forgot-password", async (req, res) => {
       });
 
       const mailer = getMailer();
-      await mailer.sendMail({
+      if (!mailer) {
+        await PasswordResetToken.deleteOne({ _id: resetToken._id });
+        return res.json(genericResponse);
+      }
+
+      void mailer.sendMail({
         from: process.env.MAIL_FROM,
         to: admin.email,
         subject: "Reset your Backspace admin password",
         text: `Use this link within 15 minutes to reset your password: ${process.env.RESET_URL}?token=${rawToken}`,
+      }).catch(async (error) => {
+        console.error("Password recovery delivery error:", error.message);
+        await PasswordResetToken.deleteOne({ _id: resetToken._id }).catch(() => undefined);
       });
     }
 
