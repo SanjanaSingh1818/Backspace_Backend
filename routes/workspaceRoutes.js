@@ -12,7 +12,7 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
-    const workspaces = await Workspace.find({ is_active: true }).sort({ createdAt: -1 }).lean();
+    const workspaces = await Workspace.find().sort({ createdAt: -1 }).lean();
     res.json(workspaces);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch workspaces" });
