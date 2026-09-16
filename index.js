@@ -7,7 +7,7 @@ for (const variableName of ["MONGO_URI", "JWT_SECRET", "ADMIN_SECRET"]) {
 	}
 }
 
-for (const variableName of ["RESET_URL", "SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM"]) {
+for (const variableName of ["RESET_URL", "RESEND_API_KEY"]) {
 	if (!process.env[variableName]) {
 		throw new Error(`${variableName} must be configured for password recovery`);
 	}

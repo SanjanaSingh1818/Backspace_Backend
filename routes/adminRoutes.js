@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import Admin from "../models/Admin.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import PasswordResetToken from "../models/PasswordResetToken.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -11,33 +11,7 @@ const router = express.Router();
 
 const passwordIsValid = (password) => typeof password === "string" && password.length >= 12;
 const emailIsValid = (email) => typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const sanitizeSmtpError = (error) => ({
-  name: error?.name,
-  code: error?.code,
-  command: error?.command,
-  responseCode: error?.responseCode,
-  response: error?.response,
-  errno: error?.errno,
-  syscall: error?.syscall,
-  address: error?.address,
-  port: error?.port,
-  host: process.env.SMTP_HOST,
-  configuredPort: Number(process.env.SMTP_PORT || 587),
-  secure: process.env.SMTP_SECURE === "true",
-});
-
-function getMailer() {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !process.env.MAIL_FROM) {
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-  });
-}
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // =============================
 // 🔹 Admin Registration Route
@@ -133,28 +107,24 @@ router.post("/forgot-password", async (req, res) => {
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       });
 
-      const mailer = getMailer();
-      if (!mailer) {
+      if (!resend || !process.env.RESET_URL) {
         await PasswordResetToken.deleteOne({ _id: resetTokenRecord._id });
-        console.error("Password recovery delivery failed", {
-          reason: "SMTP configuration incomplete",
-          hasHost: Boolean(process.env.SMTP_HOST),
-          hasUser: Boolean(process.env.SMTP_USER),
-          hasPassword: Boolean(process.env.SMTP_PASSWORD),
-          hasMailFrom: Boolean(process.env.MAIL_FROM),
-        });
+        console.error("Password recovery delivery failed");
         return res.json(genericResponse);
       }
 
       try {
-        await mailer.sendMail({
-          from: process.env.MAIL_FROM,
-          to: admin.email,
+        const resetUrl = `${process.env.RESET_URL}?token=${encodeURIComponent(rawToken)}`;
+        const { error } = await resend.emails.send({
+          from: "info@backspacecoworking.com",
+          to: [admin.email],
           subject: "Reset your Backspace admin password",
-          text: `Use this link within 15 minutes to reset your password: ${process.env.RESET_URL}?token=${rawToken}`,
+          text: `Use this link within 15 minutes to reset your password: ${resetUrl}`,
+          html: `<p>Use this link within 15 minutes to reset your password:</p><p><a href="${resetUrl}">Reset your password</a></p>`,
         });
-      } catch (error) {
-        console.error("Password recovery delivery failed", sanitizeSmtpError(error));
+        if (error) throw new Error("Resend delivery failed");
+      } catch {
+        console.error("Password recovery delivery failed");
         await PasswordResetToken.deleteOne({ _id: resetTokenRecord._id }).catch(() => undefined);
       }
     }
