@@ -15,13 +15,12 @@ export const protect = async (req, res, next) => {
     req.admin = await Admin.findById(decoded.id).select("-password");
 
     if (!req.admin || req.admin.disabledAt || req.admin.role !== "admin" && req.admin.role !== "super_admin" || req.admin.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ success: false, message: "Admin not found" });
+      return res.status(403).json({ success: false, message: "Admin access required" });
     }
 
     req.user = req.admin;
     next();
-  } catch (error) {
-    console.error("Auth error:", error);
+  } catch {
     return res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
 };

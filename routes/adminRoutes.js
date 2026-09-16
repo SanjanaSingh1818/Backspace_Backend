@@ -11,6 +11,20 @@ const router = express.Router();
 
 const passwordIsValid = (password) => typeof password === "string" && password.length >= 12;
 const emailIsValid = (email) => typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const sanitizeSmtpError = (error) => ({
+  name: error?.name,
+  code: error?.code,
+  command: error?.command,
+  responseCode: error?.responseCode,
+  response: error?.response,
+  errno: error?.errno,
+  syscall: error?.syscall,
+  address: error?.address,
+  port: error?.port,
+  host: process.env.SMTP_HOST,
+  configuredPort: Number(process.env.SMTP_PORT || 587),
+  secure: process.env.SMTP_SECURE === "true",
+});
 
 function getMailer() {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !process.env.MAIL_FROM) {
@@ -122,18 +136,27 @@ router.post("/forgot-password", async (req, res) => {
       const mailer = getMailer();
       if (!mailer) {
         await PasswordResetToken.deleteOne({ _id: resetTokenRecord._id });
+        console.error("Password recovery delivery failed", {
+          reason: "SMTP configuration incomplete",
+          hasHost: Boolean(process.env.SMTP_HOST),
+          hasUser: Boolean(process.env.SMTP_USER),
+          hasPassword: Boolean(process.env.SMTP_PASSWORD),
+          hasMailFrom: Boolean(process.env.MAIL_FROM),
+        });
         return res.json(genericResponse);
       }
 
-      void mailer.sendMail({
-        from: process.env.MAIL_FROM,
-        to: admin.email,
-        subject: "Reset your Backspace admin password",
-        text: `Use this link within 15 minutes to reset your password: ${process.env.RESET_URL}?token=${rawToken}`,
-      }).catch(async (error) => {
-        console.error("Password recovery delivery failed");
+      try {
+        await mailer.sendMail({
+          from: process.env.MAIL_FROM,
+          to: admin.email,
+          subject: "Reset your Backspace admin password",
+          text: `Use this link within 15 minutes to reset your password: ${process.env.RESET_URL}?token=${rawToken}`,
+        });
+      } catch (error) {
+        console.error("Password recovery delivery failed", sanitizeSmtpError(error));
         await PasswordResetToken.deleteOne({ _id: resetTokenRecord._id }).catch(() => undefined);
-      });
+      }
     }
 
     return res.json(genericResponse);
