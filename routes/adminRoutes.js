@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import Admin from "../models/Admin.js"; 
+import Admin from "../models/Admin.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
@@ -113,7 +113,7 @@ router.post("/forgot-password", async (req, res) => {
       const rawToken = crypto.randomBytes(32).toString("hex");
       const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
       await PasswordResetToken.deleteMany({ adminId: admin._id, usedAt: null });
-      await PasswordResetToken.create({
+      const resetTokenRecord = await PasswordResetToken.create({
         adminId: admin._id,
         tokenHash,
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
@@ -121,7 +121,7 @@ router.post("/forgot-password", async (req, res) => {
 
       const mailer = getMailer();
       if (!mailer) {
-        await PasswordResetToken.deleteOne({ _id: resetToken._id });
+        await PasswordResetToken.deleteOne({ _id: resetTokenRecord._id });
         return res.json(genericResponse);
       }
 
@@ -131,14 +131,14 @@ router.post("/forgot-password", async (req, res) => {
         subject: "Reset your Backspace admin password",
         text: `Use this link within 15 minutes to reset your password: ${process.env.RESET_URL}?token=${rawToken}`,
       }).catch(async (error) => {
-        console.error("Password recovery delivery error:", error.message);
-        await PasswordResetToken.deleteOne({ _id: resetToken._id }).catch(() => undefined);
+        console.error("Password recovery delivery failed");
+        await PasswordResetToken.deleteOne({ _id: resetTokenRecord._id }).catch(() => undefined);
       });
     }
 
     return res.json(genericResponse);
-  } catch (error) {
-    console.error("Password recovery error:", error.message);
+  } catch {
+    console.error("Password recovery request failed");
     return res.json(genericResponse);
   }
 });
@@ -168,8 +168,8 @@ router.post("/reset-password", async (req, res) => {
 
     await PasswordResetToken.updateOne({ _id: resetToken._id }, { usedAt: new Date() });
     return res.json({ success: true, message: "Password reset successfully." });
-  } catch (error) {
-    console.error("Password reset error:", error.message);
+  } catch {
+    console.error("Password reset request failed");
     return res.status(400).json({ success: false, message: "Invalid or expired reset request." });
   }
 });
